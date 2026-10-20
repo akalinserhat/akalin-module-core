@@ -518,7 +518,7 @@ export class ModuleRegistryClass {
         ...(mod.operations || []),
       ];
 
-      const groupEntities = allModEntities.map((entity) => {
+      const groupEntities: IModulePermissionMatrixGroup['entities'] = allModEntities.map((entity) => {
         const actionMap = new Map<string, IModulePermissionAction>();
 
         if (entity.useStandardCrud !== false) {
@@ -562,6 +562,7 @@ export class ModuleRegistryClass {
           id: `${mod.id}-direct-permissions`,
           category: 'islem',
           titleKey: modTitle,
+          route: undefined,
           actions: mod.permissions.map((perm) => ({
             key: perm.key,
             moduleId: mod.id,
