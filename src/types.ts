@@ -160,7 +160,7 @@ export interface IModulePromotionDefinition {
 /**
  * Modül Varlık Kategorisi
  */
-export type ModuleItemCategory = 'kart' | 'belge' | 'rapor' | 'islem';
+export type ModuleItemCategory = 'liste' | 'kart' | 'belge' | 'rapor' | 'islem';
 
 /**
  * Modül İzin Eylem Sözleşmesi
@@ -200,6 +200,10 @@ export interface IModuleEntityDefinition {
   icon?: ReactNode;
   iconName?: string;
   order?: number;
+  /** Eğer bir listenin veya üst kaydın altındaysa üst ID */
+  parentId?: string;
+  /** Hiyerarşik alt varlıklar (örn: listenin altındaki kart veya belgeler) */
+  children?: IModuleEntityDefinition[];
   /** Bu varlığın menüde görünüp görünmeyeceği (Varsayılan: true) */
   showInMenu?: boolean;
   /** Varlığın resmi olarak kayıtlı/onaylı olduğunu belirtir (Varsayılan: true) */
@@ -287,6 +291,8 @@ export interface IModuleDefinition {
   components?: IModuleExportedComponents;
   /** Modül tanıtım sözleşmesi */
   promotion?: IModulePromotionDefinition;
+  /** Modülün barındırdığı ana veri listeleri */
+  lists?: IModuleEntityDefinition[];
   /** Modülün barındırdığı ana veri kartları */
   cards?: IModuleEntityDefinition[];
   /** Modülün ürettiği belgeler */

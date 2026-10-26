@@ -29,6 +29,10 @@ import { RouteWhitelistGuard } from './guards/RouteWhitelistGuard';
  * Varlık kategorilerine göre varsayılan standart izin eylemleri (CRUD)
  */
 export const STANDARD_ACTIONS: Record<ModuleItemCategory, IModulePermissionAction[]> = {
+  liste: [
+    { action: 'goruntule', labelKey: 'Yetki: Görüntüleme', description: 'Listeyi ve kayıtları görüntüleme' },
+    { action: 'disa-aktar', labelKey: 'Yetki: Dışa Aktarma', description: 'Listeyi Excel/PDF olarak dışa aktarma' },
+  ],
   kart: [
     { action: 'goruntule', labelKey: 'Yetki: Görüntüleme', description: 'Kayıtları ve listeleri görüntüleme' },
     { action: 'olustur', labelKey: 'Yetki: Oluşturma', description: 'Yeni kart kaydı ekleme' },
@@ -66,6 +70,7 @@ export class ModuleRegistryClass {
   private entityRegistry: Map<
     string,
     {
+      lists: IModuleEntityDefinition[];
       cards: IModuleEntityDefinition[];
       documents: IModuleEntityDefinition[];
       reports: IModuleEntityDefinition[];
@@ -548,6 +553,7 @@ export class ModuleRegistryClass {
   public registerModuleEntities(
     moduleId: string,
     entities: {
+      lists?: IModuleEntityDefinition[];
       cards?: IModuleEntityDefinition[];
       documents?: IModuleEntityDefinition[];
       reports?: IModuleEntityDefinition[];
@@ -557,6 +563,7 @@ export class ModuleRegistryClass {
     if (!moduleId) return;
     const norm = this.normalizeCode(moduleId);
     const current = this.entityRegistry.get(norm) || {
+      lists: [],
       cards: [],
       documents: [],
       reports: [],
@@ -564,6 +571,7 @@ export class ModuleRegistryClass {
     };
 
     this.entityRegistry.set(norm, {
+      lists: [...current.lists, ...(entities.lists || [])],
       cards: [...current.cards, ...(entities.cards || [])],
       documents: [...current.documents, ...(entities.documents || [])],
       reports: [...current.reports, ...(entities.reports || [])],
@@ -574,23 +582,29 @@ export class ModuleRegistryClass {
   }
 
   /**
-   * Belirtilen modüle ait tüm kayıtlı kart, belge, rapor ve işlem tanımlarını döner.
+   * Belirtilen modüle ait tüm kayıtlı liste, kart, belge, rapor ve işlem tanımlarını döner.
    */
   public getModuleEntities(moduleId: string): {
+    lists: IModuleEntityDefinition[];
     cards: IModuleEntityDefinition[];
     documents: IModuleEntityDefinition[];
     reports: IModuleEntityDefinition[];
     operations: IModuleEntityDefinition[];
+    tree: IModuleEntityDefinition[];
     all: IModuleEntityDefinition[];
   } {
     if (!moduleId) {
-      return { cards: [], documents: [], reports: [], operations: [], all: [] };
+      return { lists: [], cards: [], documents: [], reports: [], operations: [], tree: [], all: [] };
     }
 
     const mod = this.getModule(moduleId);
     const norm = this.normalizeCode(moduleId);
     const fromEntityReg = this.entityRegistry.get(norm);
 
+    const rawLists = [
+      ...(Array.isArray(mod?.lists) ? mod!.lists : []),
+      ...(fromEntityReg?.lists || []),
+    ];
     const rawCards = [
       ...(Array.isArray(mod?.cards) ? mod!.cards : []),
       ...(fromEntityReg?.cards || []),
@@ -617,17 +631,55 @@ export class ModuleRegistryClass {
       });
     };
 
+    const lists = deduplicate(rawLists);
     const cards = deduplicate(rawCards);
     const documents = deduplicate(rawDocuments);
     const reports = deduplicate(rawReports);
     const operations = deduplicate(rawOperations);
 
+    // Hiyerarşik ağaç (tree) oluştur: Listelerin altına ilgili kart ve belgeleri bağla
+    const tree: IModuleEntityDefinition[] = lists.map((l) => {
+      const childCards = cards.filter((c) => c.parentId === l.id);
+      const childDocs = documents.filter((d) => d.parentId === l.id);
+      const explicitChildren = l.children || [];
+      const combinedChildren = deduplicate([...explicitChildren, ...childCards, ...childDocs]);
+      return {
+        ...l,
+        children: combinedChildren,
+      };
+    });
+
+    const attachedIds = new Set<string>();
+    tree.forEach((node) => {
+      (node.children || []).forEach((c) => attachedIds.add(c.id));
+    });
+
+    cards.forEach((c) => {
+      if (!c.parentId && !attachedIds.has(c.id)) {
+        tree.push(c);
+      }
+    });
+
+    documents.forEach((d) => {
+      if (!d.parentId && !attachedIds.has(d.id)) {
+        tree.push(d);
+      }
+    });
+
+    reports.forEach((r) => {
+      if (!attachedIds.has(r.id)) {
+        tree.push(r);
+      }
+    });
+
     return {
+      lists,
       cards,
       documents,
       reports,
       operations,
-      all: [...cards, ...documents, ...reports, ...operations],
+      tree,
+      all: deduplicate([...lists, ...cards, ...documents, ...reports, ...operations]),
     };
   }
 
