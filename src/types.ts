@@ -257,6 +257,8 @@ export interface IModuleDefinition {
   description?: string;
   /** Modül versiyonu */
   version?: string;
+  /** Alternatif modül kodları ve takma adları (örn: ['cari_yonetimi', 'MOD_CARI']) */
+  aliases?: string[];
   /** Yetki anahtarlarında kullanılacak kısa ön ek (örn: 'smtp', 'cari') */
   permissionPrefix?: string;
   /** Modül simgesi (React bileşeni) */

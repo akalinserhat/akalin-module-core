@@ -63,6 +63,15 @@ const CORE_MODULE_IDS = new Set([
 
 export class ModuleRegistryClass {
   private modules: Map<string, IModuleDefinition> = new Map();
+  private entityRegistry: Map<
+    string,
+    {
+      cards: IModuleEntityDefinition[];
+      documents: IModuleEntityDefinition[];
+      reports: IModuleEntityDefinition[];
+      operations: IModuleEntityDefinition[];
+    }
+  > = new Map();
   private activeModuleCodes: Set<string> | null = null;
   private listeners: Array<() => void> = [];
 
@@ -184,7 +193,8 @@ export class ModuleRegistryClass {
     for (const [key, mod] of this.modules.entries()) {
       if (
         this.normalizeCode(key) === normalizedTarget ||
-        this.normalizeCode(mod.id) === normalizedTarget
+        this.normalizeCode(mod.id) === normalizedTarget ||
+        (Array.isArray(mod.aliases) && mod.aliases.some((a) => this.normalizeCode(a) === normalizedTarget))
       ) {
         return mod;
       }
@@ -533,6 +543,37 @@ export class ModuleRegistryClass {
   }
 
   /**
+   * Bağımsız varlık tanımlarını (kart, belge, rapor, işlem) modül ID'si ile eşleştirerek tescil eder.
+   */
+  public registerModuleEntities(
+    moduleId: string,
+    entities: {
+      cards?: IModuleEntityDefinition[];
+      documents?: IModuleEntityDefinition[];
+      reports?: IModuleEntityDefinition[];
+      operations?: IModuleEntityDefinition[];
+    }
+  ): void {
+    if (!moduleId) return;
+    const norm = this.normalizeCode(moduleId);
+    const current = this.entityRegistry.get(norm) || {
+      cards: [],
+      documents: [],
+      reports: [],
+      operations: [],
+    };
+
+    this.entityRegistry.set(norm, {
+      cards: [...current.cards, ...(entities.cards || [])],
+      documents: [...current.documents, ...(entities.documents || [])],
+      reports: [...current.reports, ...(entities.reports || [])],
+      operations: [...current.operations, ...(entities.operations || [])],
+    });
+
+    this.notify();
+  }
+
+  /**
    * Belirtilen modüle ait tüm kayıtlı kart, belge, rapor ve işlem tanımlarını döner.
    */
   public getModuleEntities(moduleId: string): {
@@ -542,21 +583,44 @@ export class ModuleRegistryClass {
     operations: IModuleEntityDefinition[];
     all: IModuleEntityDefinition[];
   } {
-    const mod = this.getModule(moduleId);
-    if (!mod) {
-      return {
-        cards: [],
-        documents: [],
-        reports: [],
-        operations: [],
-        all: [],
-      };
+    if (!moduleId) {
+      return { cards: [], documents: [], reports: [], operations: [], all: [] };
     }
 
-    const cards = Array.isArray(mod.cards) ? mod.cards : [];
-    const documents = Array.isArray(mod.documents) ? mod.documents : [];
-    const reports = Array.isArray(mod.reports) ? mod.reports : [];
-    const operations = Array.isArray(mod.operations) ? mod.operations : [];
+    const mod = this.getModule(moduleId);
+    const norm = this.normalizeCode(moduleId);
+    const fromEntityReg = this.entityRegistry.get(norm);
+
+    const rawCards = [
+      ...(Array.isArray(mod?.cards) ? mod!.cards : []),
+      ...(fromEntityReg?.cards || []),
+    ];
+    const rawDocuments = [
+      ...(Array.isArray(mod?.documents) ? mod!.documents : []),
+      ...(fromEntityReg?.documents || []),
+    ];
+    const rawReports = [
+      ...(Array.isArray(mod?.reports) ? mod!.reports : []),
+      ...(fromEntityReg?.reports || []),
+    ];
+    const rawOperations = [
+      ...(Array.isArray(mod?.operations) ? mod!.operations : []),
+      ...(fromEntityReg?.operations || []),
+    ];
+
+    const deduplicate = (list: IModuleEntityDefinition[]) => {
+      const seen = new Set<string>();
+      return list.filter((item) => {
+        if (!item || !item.id || seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+    };
+
+    const cards = deduplicate(rawCards);
+    const documents = deduplicate(rawDocuments);
+    const reports = deduplicate(rawReports);
+    const operations = deduplicate(rawOperations);
 
     return {
       cards,
@@ -1031,6 +1095,7 @@ export class ModuleRegistryClass {
 
   public clear(): void {
     this.modules.clear();
+    this.entityRegistry.clear();
     this.activeModuleCodes = null;
     this.notify();
   }
