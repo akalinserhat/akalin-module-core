@@ -83,6 +83,7 @@ export function isRouteWhitelisted(
   }
 
   const hasRegisteredEntities =
+    (Array.isArray(module.lists) && module.lists.length > 0) ||
     (Array.isArray(module.cards) && module.cards.length > 0) ||
     (Array.isArray(module.documents) && module.documents.length > 0) ||
     (Array.isArray(module.reports) && module.reports.length > 0) ||
@@ -105,8 +106,9 @@ export function isRouteWhitelisted(
     }
   }
 
-  // Modüle ait tescilli kart, belge, rapor ve işlem tanımlarını topla
+  // Modüle ait tescilli liste, kart, belge, rapor ve işlem tanımlarını topla
   const entities: IModuleEntityDefinition[] = [
+    ...(module.lists || []),
     ...(module.cards || []),
     ...(module.documents || []),
     ...(module.reports || []),

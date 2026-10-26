@@ -385,6 +385,7 @@ export class ModuleRegistryClass {
 
     // Eğer modülde hiçbir kart veya belge tanımlanmamışsa ve strict mod açık değilse (örn. ayar/yardımcı modüller), geçir
     const hasRegisteredEntities =
+      (Array.isArray(module.lists) && module.lists.length > 0) ||
       (Array.isArray(module.cards) && module.cards.length > 0) ||
       (Array.isArray(module.documents) && module.documents.length > 0);
 
@@ -406,6 +407,7 @@ export class ModuleRegistryClass {
     }
 
     const entities: IModuleEntityDefinition[] = [
+      ...(module.lists || []),
       ...(module.cards || []),
       ...(module.documents || []),
       ...(module.reports || []),
@@ -707,6 +709,7 @@ export class ModuleRegistryClass {
         }
       };
 
+      addEntities(mod.lists);
       addEntities(mod.cards);
       addEntities(mod.documents);
       addEntities(mod.reports);
@@ -759,6 +762,7 @@ export class ModuleRegistryClass {
         });
       };
 
+      processEntityList(mod.lists);
       processEntityList(mod.cards);
       processEntityList(mod.documents);
       processEntityList(mod.reports);
@@ -797,6 +801,7 @@ export class ModuleRegistryClass {
       const prefix = this.getModulePermissionPrefix(mod);
       const modTitle = mod.title || mod.name || mod.id;
       const allModEntities: IModuleEntityDefinition[] = [
+        ...(mod.lists || []),
         ...(mod.cards || []),
         ...(mod.documents || []),
         ...(mod.reports || []),
