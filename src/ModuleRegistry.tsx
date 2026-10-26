@@ -23,6 +23,7 @@ import {
 } from './types';
 import { checkUserPermission } from './permissions/permissionUtils';
 import { RoutePermissionGuard } from './guards/RoutePermissionGuard';
+import { RouteWhitelistGuard } from './guards/RouteWhitelistGuard';
 
 /**
  * Varlık kategorilerine göre varsayılan standart izin eylemleri (CRUD)
@@ -201,15 +202,11 @@ export class ModuleRegistryClass {
     activeModules.forEach((mod) => {
       if (Array.isArray(mod.routes)) {
         mod.routes.forEach((route) => {
-          const perms =
-            route.requiredPermissions ||
-            (route.requiredPermission ? [route.requiredPermission] : undefined);
-
           routeElements.push(
             <Route
               key={route.path}
               path={route.path}
-              element={this.wrapRouteElement(route.element, perms)}
+              element={this.wrapRouteElement(route.element, mod, route)}
             />
           );
 
@@ -229,7 +226,10 @@ export class ModuleRegistryClass {
                   <Route
                     key={fullSubPath}
                     path={fullSubPath}
-                    element={this.wrapRouteElement(route.element, perms)}
+                    element={this.wrapRouteElement(route.element, mod, {
+                      ...route,
+                      path: fullSubPath,
+                    })}
                   />
                 );
               }
@@ -252,14 +252,11 @@ export class ModuleRegistryClass {
     activeModules.forEach((mod) => {
       if (Array.isArray(mod.popupRoutes)) {
         mod.popupRoutes.forEach((route) => {
-          const perms =
-            route.requiredPermissions ||
-            (route.requiredPermission ? [route.requiredPermission] : undefined);
           popupRouteElements.push(
             <Route
               key={route.path}
               path={route.path}
-              element={this.wrapRouteElement(route.element, perms)}
+              element={this.wrapRouteElement(route.element, mod, route)}
             />
           );
         });
@@ -287,16 +284,26 @@ export class ModuleRegistryClass {
     return allRoutes;
   }
 
-  private wrapRouteElement(element: ReactNode, requiredPermissions?: string[]): ReactNode {
+  private wrapRouteElement(
+    element: ReactNode,
+    module: IModuleDefinition,
+    route: IRouteDefinition
+  ): ReactNode {
+    const perms =
+      route.requiredPermissions ||
+      (route.requiredPermission ? [route.requiredPermission] : undefined);
+
     return (
       <Suspense fallback={null}>
-        {requiredPermissions && requiredPermissions.length > 0 ? (
-          <RoutePermissionGuard requiredPermissions={requiredPermissions}>
-            {element}
-          </RoutePermissionGuard>
-        ) : (
-          element
-        )}
+        <RouteWhitelistGuard module={module} route={route}>
+          {perms && perms.length > 0 ? (
+            <RoutePermissionGuard requiredPermissions={perms}>
+              {element}
+            </RoutePermissionGuard>
+          ) : (
+            element
+          )}
+        </RouteWhitelistGuard>
       </Suspense>
     );
   }
@@ -368,6 +375,19 @@ export class ModuleRegistryClass {
 
     if (!module.strictEntityRegistration && !hasRegisteredEntities) {
       return true;
+    }
+
+    // Açıkça izin verilen yardımcı rotalar kontrolü
+    if (Array.isArray(module.whitelistedRoutes) && item.path) {
+      const cleanItemPath = item.path.split('?')[0].replace(/\/+$/, '');
+      if (
+        module.whitelistedRoutes.some((w) => {
+          const cleanW = w.split('?')[0].replace(/\/+$/, '');
+          return cleanItemPath === cleanW || cleanItemPath.startsWith(`${cleanW}/`);
+        })
+      ) {
+        return true;
+      }
     }
 
     const entities: IModuleEntityDefinition[] = [

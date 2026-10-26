@@ -27,6 +27,13 @@ export {
   type RoutePermissionGuardProps,
 } from './guards/RoutePermissionGuard';
 export {
+  RouteWhitelistGuard,
+  type RouteWhitelistGuardProps,
+  isRouteWhitelisted,
+  normalizePath,
+  matchRoutePattern,
+} from './guards/RouteWhitelistGuard';
+export {
   PermissionGuard,
   type PermissionGuardProps,
 } from './guards/PermissionGuard';

@@ -297,8 +297,10 @@ export interface IModuleDefinition {
   permissions?: IModulePermission[];
   /** Alt modüller */
   subModules?: IModuleDefinition[];
-  /** Kart ve belgeler için zorunlu tescil/kayıt denetimi (Strict Whitelist). Kayıtsız varlıklar menüde görünmez. */
+  /** Kart ve belgeler için zorunlu tescil/kayıt denetimi (Strict Whitelist). Kayıtsız varlıklar menüde görünmez ve açılamaz. */
   strictEntityRegistration?: boolean;
+  /** Modüle ait varlık (kart/belge) olmayan ancak erişimine izin verilen yardımcı rotalar (örn: popup formlar, sihirbazlar) */
+  whitelistedRoutes?: string[];
   /** Modül yüklendiğinde çalışacak başlatma fonksiyonu */
   onInitialize?: () => void | Promise<void>;
   initialize?: () => void | Promise<void>;
