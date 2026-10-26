@@ -172,10 +172,23 @@ export class ModuleRegistryClass {
   }
 
   /**
-   * Tekil modül döner
+   * Tekil modül döner (ID formatı, kebab-case veya snake_case fark etmeksizin bulur)
    */
   public getModule(id: string): IModuleDefinition | undefined {
-    return this.modules.get(id);
+    if (!id) return undefined;
+    const direct = this.modules.get(id);
+    if (direct) return direct;
+
+    const normalizedTarget = this.normalizeCode(id);
+    for (const [key, mod] of this.modules.entries()) {
+      if (
+        this.normalizeCode(key) === normalizedTarget ||
+        this.normalizeCode(mod.id) === normalizedTarget
+      ) {
+        return mod;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -337,14 +350,115 @@ export class ModuleRegistryClass {
     return this.getMenuItems();
   }
 
+  /**
+   * Bir menü öğesinin veya rotanın ilgili modülde tescilli (registered) olup olmadığını doğrular.
+   * Eğer modülde strictEntityRegistration aktifse veya modülde tanımlı kart/belgeler varsa;
+   * tescil edilmemiş yaprak menü öğeleri menü ağacına alınmaz.
+   */
+  public isMenuItemRegistered(item: IMenuItemDefinition, module: IModuleDefinition): boolean {
+    // Dropdown / grup menüleri tek başına bir sayfa rotası olmadığı için alt elemanlarına göre değerlendirilir
+    if (item.isDropdown && !item.path) {
+      return true;
+    }
+
+    // Eğer modülde hiçbir kart veya belge tanımlanmamışsa ve strict mod açık değilse (örn. ayar/yardımcı modüller), geçir
+    const hasRegisteredEntities =
+      (Array.isArray(module.cards) && module.cards.length > 0) ||
+      (Array.isArray(module.documents) && module.documents.length > 0);
+
+    if (!module.strictEntityRegistration && !hasRegisteredEntities) {
+      return true;
+    }
+
+    const entities: IModuleEntityDefinition[] = [
+      ...(module.cards || []),
+      ...(module.documents || []),
+      ...(module.reports || []),
+      ...(module.operations || []),
+    ];
+
+    // 1. Doğrudan entityId eşleşmesi
+    if (item.entityId) {
+      const match = entities.find((e) => e.id === item.entityId);
+      if (match) {
+        return match.isRegistered !== false && match.showInMenu !== false;
+      }
+      return false;
+    }
+
+    // 2. Rota yolu eşleşmesi (path -> route, listRoute, formRoute)
+    if (item.path) {
+      const cleanItemPath = item.path.split('?')[0].replace(/\/+$/, '');
+      const match = entities.find((e) => {
+        const routes = [e.route, e.listRoute, e.formRoute].filter(Boolean) as string[];
+        return routes.some((r) => {
+          const cleanRoute = r.split('?')[0].replace(/\/+$/, '');
+          return cleanItemPath === cleanRoute || cleanItemPath.startsWith(`${cleanRoute}/`);
+        });
+      });
+
+      if (match) {
+        return match.isRegistered !== false && match.showInMenu !== false;
+      }
+
+      // Eğer modülde kart/belge varsa veya strict mod açıksa, whitelist dışındaki rotalar engellenir
+      if (module.strictEntityRegistration || hasRegisteredEntities) {
+        console.warn(
+          `[ModuleRegistry] Kayıtsız menü öğesi engellendi: "${item.label}" (${item.path}) - Modül: "${module.id}". Kart veya belge listesinde register edilmelidir.`
+        );
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Modülün menü öğelerini tescil kontrolünden geçirerek temizler (recursive)
+   */
+  public filterRegisteredMenuItems(
+    items: IMenuItemDefinition[],
+    module: IModuleDefinition
+  ): IMenuItemDefinition[] {
+    return items
+      .filter((item) => this.isMenuItemRegistered(item, module))
+      .map((item) => {
+        if (Array.isArray(item.children) && item.children.length > 0) {
+          const filteredChildren = this.filterRegisteredMenuItems(item.children, module);
+          return {
+            ...item,
+            children: filteredChildren,
+          };
+        }
+        return item;
+      })
+      .filter((item) => {
+        // Eğer bir dropdown grubun tüm çocukları filtrelendiyse ve kendi rotası yoksa menüden gizle
+        if (
+          item.isDropdown &&
+          !item.path &&
+          Array.isArray(item.children) &&
+          item.children.length === 0
+        ) {
+          return false;
+        }
+        return true;
+      });
+  }
+
   public getMenuItems(): IMenuItemDefinition[] {
     const rawItems: IMenuItemDefinition[] = [];
     const activeModules = this.getActiveModules();
 
     activeModules.forEach((mod) => {
       if (Array.isArray(mod.menuItems)) {
-        mod.menuItems.forEach((item) => {
-          rawItems.push({ ...item, id: item.id || item.path || item.label });
+        const verifiedItems = this.filterRegisteredMenuItems(mod.menuItems, mod);
+        verifiedItems.forEach((item) => {
+          rawItems.push({
+            ...item,
+            id: item.id || item.path || item.label,
+            moduleId: item.moduleId || mod.id,
+          });
         });
       }
     });
@@ -396,6 +510,41 @@ export class ModuleRegistryClass {
       .replace(/-modulu$/, '')
       .replace(/-module$/, '')
       .replace(/[^a-z0-9]/g, '');
+  }
+
+  /**
+   * Belirtilen modüle ait tüm kayıtlı kart, belge, rapor ve işlem tanımlarını döner.
+   */
+  public getModuleEntities(moduleId: string): {
+    cards: IModuleEntityDefinition[];
+    documents: IModuleEntityDefinition[];
+    reports: IModuleEntityDefinition[];
+    operations: IModuleEntityDefinition[];
+    all: IModuleEntityDefinition[];
+  } {
+    const mod = this.getModule(moduleId);
+    if (!mod) {
+      return {
+        cards: [],
+        documents: [],
+        reports: [],
+        operations: [],
+        all: [],
+      };
+    }
+
+    const cards = Array.isArray(mod.cards) ? mod.cards : [];
+    const documents = Array.isArray(mod.documents) ? mod.documents : [];
+    const reports = Array.isArray(mod.reports) ? mod.reports : [];
+    const operations = Array.isArray(mod.operations) ? mod.operations : [];
+
+    return {
+      cards,
+      documents,
+      reports,
+      operations,
+      all: [...cards, ...documents, ...reports, ...operations],
+    };
   }
 
   public getAllEntities(
@@ -613,8 +762,13 @@ export class ModuleRegistryClass {
       }
 
       if (Array.isArray(mod.menuItems)) {
-        mod.menuItems.forEach((item) => {
-          rawItems.push({ ...item, id: item.id || item.path || item.label });
+        const verifiedItems = this.filterRegisteredMenuItems(mod.menuItems, mod);
+        verifiedItems.forEach((item) => {
+          rawItems.push({
+            ...item,
+            id: item.id || item.path || item.label,
+            moduleId: item.moduleId || mod.id,
+          });
         });
       }
     });

@@ -52,6 +52,10 @@ export interface IMenuItemDefinition {
   requiredPermissions?: string[];
   /** Alt menü öğeleri */
   children?: IMenuItemDefinition[];
+  /** İlgili varlık kimliği (kart/belge id) - Whitelist denetimi ve tescil eşleşmesi için */
+  entityId?: string;
+  /** İlgili modül kimliği */
+  moduleId?: string;
 }
 
 /**
@@ -186,9 +190,20 @@ export interface IModuleEntityDefinition {
   id: string;
   category: ModuleItemCategory;
   titleKey: string;
+  title?: string;
+  description?: string;
+  route?: string;
+  listRoute?: string;
+  formRoute?: string;
   customActions?: IModulePermissionAction[];
   useStandardCrud?: boolean;
-  route?: string;
+  icon?: ReactNode;
+  iconName?: string;
+  order?: number;
+  /** Bu varlığın menüde görünüp görünmeyeceği (Varsayılan: true) */
+  showInMenu?: boolean;
+  /** Varlığın resmi olarak kayıtlı/onaylı olduğunu belirtir (Varsayılan: true) */
+  isRegistered?: boolean;
 }
 
 /**
@@ -282,6 +297,8 @@ export interface IModuleDefinition {
   permissions?: IModulePermission[];
   /** Alt modüller */
   subModules?: IModuleDefinition[];
+  /** Kart ve belgeler için zorunlu tescil/kayıt denetimi (Strict Whitelist). Kayıtsız varlıklar menüde görünmez. */
+  strictEntityRegistration?: boolean;
   /** Modül yüklendiğinde çalışacak başlatma fonksiyonu */
   onInitialize?: () => void | Promise<void>;
   initialize?: () => void | Promise<void>;
