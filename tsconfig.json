@@ -15,17 +15,7 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": false,
-    "allowJs": true,
-    "paths": {
-      "react": ["../webakus/Webakus.UI/node_modules/@types/react"],
-      "react/*": ["../webakus/Webakus.UI/node_modules/@types/react/*"],
-      "react-dom": ["../webakus/Webakus.UI/node_modules/@types/react-dom"],
-      "react-dom/*": ["../webakus/Webakus.UI/node_modules/@types/react-dom/*"],
-      "react-router-dom": ["../webakus/node_modules/react-router-dom"],
-      "lucide-react": ["../webakus/node_modules/lucide-react"],
-      "@akalin/ui": ["../webakus/node_modules/@akalin/ui/src/index.ts"],
-      "@akalin/ui/*": ["../webakus/node_modules/@akalin/ui/src/*"]
-    }
+    "allowJs": true
   },
   "include": ["src"]
 }
