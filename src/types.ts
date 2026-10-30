@@ -208,6 +208,12 @@ export interface IModuleEntityDefinition {
   showInMenu?: boolean;
   /** Varlığın resmi olarak kayıtlı/onaylı olduğunu belirtir (Varsayılan: true) */
   isRegistered?: boolean;
+  /** Bu sayfa/varlık için [sayfaİsmi]settingsForExternal.tsx harici düğüm ayar sayfası var mı? */
+  hasExternalSettings?: boolean;
+  /** Harici ayar sayfasının rotası (opsiyonel) */
+  externalSettingsRoute?: string;
+  /** Harici ayar sayfası bileşeni ([sayfaİsmi]settingsForExternal.tsx) */
+  externalSettingsComponent?: ComponentType<any>;
 }
 
 /**
