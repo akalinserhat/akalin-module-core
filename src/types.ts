@@ -110,15 +110,15 @@ export interface IModuleActionItem {
   label: string;
   type?: ModuleActionType;
   placement?:
-    | 'header'
-    | 'header-right'
-    | 'drawer'
-    | 'document-dropdown'
-    | 'table-row'
-    | 'quick-actions'
-    | 'dashboard'
-    | 'custom'
-    | string;
+  | 'header'
+  | 'header-right'
+  | 'drawer'
+  | 'document-dropdown'
+  | 'table-row'
+  | 'quick-actions'
+  | 'dashboard'
+  | 'custom'
+  | string;
   targetContext?: string;
   icon?: ReactNode;
   onClick?: (e?: MouseEvent<any>, contextData?: any) => void;
@@ -208,11 +208,11 @@ export interface IModuleEntityDefinition {
   showInMenu?: boolean;
   /** Varlığın resmi olarak kayıtlı/onaylı olduğunu belirtir (Varsayılan: true) */
   isRegistered?: boolean;
-  /** Bu sayfa/varlık için [sayfaİsmi]settingsForExternal.tsx harici düğüm ayar sayfası var mı? */
+  /** Bu sayfa/varlık için [sayfaİsmi]SettingsForExternal.tsx harici düğüm ayar sayfası var mı? */
   hasExternalSettings?: boolean;
   /** Harici ayar sayfasının rotası (opsiyonel) */
   externalSettingsRoute?: string;
-  /** Harici ayar sayfası bileşeni ([sayfaİsmi]settingsForExternal.tsx) */
+  /** Harici ayar sayfası bileşeni ([sayfaİsmi]SettingsForExternal.tsx) */
   externalSettingsComponent?: ComponentType<any>;
 }
 
